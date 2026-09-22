@@ -1,3 +1,4 @@
+import io
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -10,46 +11,21 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS injection for high-end UI/UX (Soft shadows, rounded containers, clean typography)
 st.markdown(
     """
     <style>
-    /* Main background & font */
-    .stApp {
-        background-color: #F8FAFC;
-        color: #1E293B;
-        font-family: 'Inter', sans-serif;
-    }
-    
-    /* Hide standard streamlit menu elements for clean look */
+    .stApp { background-color: #F8FAFC; color: #1E293B; font-family: 'Inter', sans-serif; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-
-    /* Metric Card Styling */
     div.metric-card {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-        margin-bottom: 10px;
+        background-color: #FFFFFF; border: 1px solid #E2E8F0; padding: 20px;
+        border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
-    
-    /* Headers */
-    h1, h2, h3 {
-        color: #0F172A;
-        font-weight: 700;
-    }
-
-    /* Dataframe styling */
-    dataframe {
-        border-radius: 8px;
-    }
+    h1, h2, h3 { color: #0F172A; font-weight: 700; }
     </style>
 """,
     unsafe_allow_html=True,
 )
-
 
 # 2. Application Header
 st.markdown(
@@ -63,18 +39,9 @@ st.markdown(
 )
 
 
-# 3. Data Input Section (Sidebar Data Uploader or Raw Paste Simulation)
-st.sidebar.markdown(
-    "### 📊 Data Management", unsafe_allow_html=True
-)  #
-uploaded_file = st.sidebar.file_uploader(
-    "Upload CSV Export", type=["csv"], help="Upload your exported captain dataset CSV file."
-)
-
-# Fallback or sample session data generator if no file uploaded yet
+# 3. Fallback Sample Data Generator
 @st.cache_data
 def load_sample_data():
-    # Creating a sample template matching user headers if they want to test right away
     data = {
         "captain_id": [101, 102, 103, 104, 105],
         "city": ["Amman", "Irbid", "Amman", "Zarqa", "Amman"],
@@ -141,39 +108,65 @@ def load_sample_data():
     return pd.DataFrame(data)
 
 
-if uploaded_file is not None:
-    try:
-        df = pd.read_csv(uploaded_file)
-    except Exception as e:
-        st.error(f"Error reading file: {e}")
-        df = load_sample_data()
+# 4. Sidebar Data Input Section (Supports File Upload OR Direct Text Paste)
+st.sidebar.markdown("### 📊 Data Management", unsafe_allow_html=True)
+input_method = st.sidebar.radio(
+    "Choose Input Method", ["Upload CSV File", "Paste CSV Data"]
+)
+
+df = None
+
+if input_method == "Upload CSV File":
+    uploaded_file = st.sidebar.file_uploader(
+        "Upload CSV Export", type=["csv", "txt"]
+    )
+    if uploaded_file is not None:
+        try:
+            df = pd.read_csv(uploaded_file)
+        except Exception as e:
+            st.error(f"Error reading file: {e}")
 else:
+    pasted_data = st.sidebar.text_area(
+        "Paste CSV / Excel Data Here",
+        placeholder=(
+            "captain_id\tcity\tcaptain_name...\n(Include headers in the first"
+            " row)"
+        ),
+        height=150,
+    )
+    if pasted_data:
+        try:
+            # Automatically sniffs delimiter whether comma-separated or tab-separated (Excel copy-paste)
+            df = pd.read_csv(io.StringIO(pasted_data), sep=None, engine="python")
+        except Exception as e:
+            st.error(
+                f"Could not parse data. Ensure headers are present. Error: {e}"
+            )
+
+# Fallback to sample data if nothing is uploaded or pasted yet
+if df is None:
     df = load_sample_data()
     st.sidebar.info(
-        "💡 Tip: Upload your CSV file using the uploader above. Displaying sample data for preview."
+        "💡 Showing sample data. Upload a file or paste your dataset to view live"
+        " metrics."
     )
 
-# 4. Sidebar Global Filters
+# 5. Sidebar Global Filters
 st.sidebar.markdown("### 🔍 Filters")
-
-# City Filter
 selected_cities = st.sidebar.multiselect(
     "Filter by City",
     options=df["city"].unique().tolist(),
     default=df["city"].unique().tolist(),
 )
-
-# Limo Company Filter
 selected_companies = st.sidebar.multiselect(
     "Filter by Limo Company",
     options=df["limo_company_name"].unique().tolist(),
     default=df["limo_company_name"].unique().tolist(),
 )
-
-# Status Filter
-status_options = df["captain_block_status"].unique().tolist()
 selected_statuses = st.sidebar.multiselect(
-    "Captain Status", options=status_options, default=status_options
+    "Captain Status",
+    options=df["captain_block_status"].unique().tolist(),
+    default=df["captain_block_status"].unique().tolist(),
 )
 
 # Apply Filters
@@ -183,10 +176,8 @@ filtered_df = df[
     & (df["captain_block_status"].isin(selected_statuses))
 ]
 
-
-# 5. Top Metrics Row (High-End Metric Containers)
+# 6. Top Metrics Row
 col1, col2, col3, col4, col5 = st.columns(5)
-
 total_captains = len(filtered_df)
 active_captains = len(
     filtered_df[filtered_df["captain_block_status"] == "Active"]
@@ -204,17 +195,10 @@ with col1:
 with col2:
     st.metric(label="Total Trips Count", value=f"{total_trips:,}")
 with col3:
-    st.metric(
-        label="Net Wallet Balance",
-        value=f"${total_balance:,.2f}",
-        delta_color="inverse",
-    )
+    st.metric(label="Net Wallet Balance", value=f"${total_balance:,.2f}")
 with col4:
     st.metric(
-        label="Cash Blocked",
-        value=f"{cash_blocked_count}",
-        delta="Needs review",
-        delta_color="inverse",
+        label="Cash Blocked", value=f"{cash_blocked_count}", delta="Needs review"
     )
 with col5:
     avg_trips = (
@@ -224,15 +208,11 @@ with col5:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-
-# 6. Charts & Visualizations Row
+# 7. Charts Row
 chart_col1, chart_col2 = st.columns(2)
 
 with chart_col1:
-    st.markdown(
-        "<h3 style='font-size: 1.25rem;'>🏆 Trips Distribution by Tier</h3>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("### 🏆 Trips Distribution by Tier")
     if not filtered_df.empty:
         tier_df = (
             filtered_df.groupby("tier")["cumulative_trip_count"]
@@ -255,14 +235,9 @@ with chart_col1:
             plot_bgcolor="rgba(0,0,0,0)",
         )
         st.plotly_chart(fig_tier, use_container_width=True)
-    else:
-        st.warning("No data available for current filters.")
 
 with chart_col2:
-    st.markdown(
-        "<h3 style='font-size: 1.25rem;'>🏢 Performance per Limo Company</h3>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("### 🏢 Performance per Limo Company")
     if not filtered_df.empty:
         comp_df = (
             filtered_df.groupby("limo_company_name")["cumulative_trip_count"]
@@ -284,23 +259,15 @@ with chart_col2:
             plot_bgcolor="rgba(0,0,0,0)",
         )
         st.plotly_chart(fig_comp, use_container_width=True)
-    else:
-        st.warning("No data available for current filters.")
 
-
-# 7. Detailed Interactive Data Grid
+# 8. Detailed Data Grid & Search
 st.markdown("<br>", unsafe_allow_html=True)
-st.markdown(
-    "<h3 style='font-size: 1.3rem;'>📋 Detailed Captains Database</h3>",
-    unsafe_allow_html=True,
-)
+st.markdown("### 📋 Detailed Captains Database")
 
-# Search input for specific captain
 search_query = st.text_input(
     "🔍 Quick Search Captain",
     placeholder="Type captain name, ID, or phone number...",
 )
-
 if search_query:
     filtered_df = filtered_df[
         filtered_df["captain_name"]
@@ -309,23 +276,8 @@ if search_query:
         | filtered_df["phone_number"].astype(str).str.contains(search_query)
     ]
 
-# Display interactive dataframe with customized column configuration
-st.dataframe(
-    filtered_df,
-    use_container_width=True,
-    hide_index=True,
-    column_config={
-        "captain_id": st.column_config.NumberColumn("ID", format="%d"),
-        "balance": st.column_config.NumberColumn("Balance ($)", format="$%.2f"),
-        "cumulative_trip_count": st.column_config.NumberColumn(
-            "Total Trips", format="%d"
-        ),
-        "phone_number": "Phone",
-        "captain_block_status": "Status",
-    },
-)
+st.dataframe(filtered_df, use_container_width=True, hide_index=True)
 
-# Download Option for filtered view
 st.download_button(
     label="📥 Export Filtered Data to CSV",
     data=filtered_df.to_csv(index=False).encode("utf-8"),
