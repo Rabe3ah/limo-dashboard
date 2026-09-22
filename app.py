@@ -3,64 +3,82 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-# 1. Page Configuration & Modern Light Theme Styling
+# 1. Page Configuration
 st.set_page_config(
-    page_title="Fleet Operations Dashboard",
+    page_title="Fleet Operations | Enterprise Dashboard",
     page_icon="🚗",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
+# 2. High-End Modern SaaS CSS Styling
 st.markdown(
     """
     <style>
-    /* Global App Styling */
+    /* Global Styles */
     .stApp {
         background-color: #F8FAFC;
-        color: #1E293B;
-        font-family: 'Inter', sans-serif;
+        color: #0F172A;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 
-    /* Card Containers for Metrics & Sections */
-    div.metric-container {
+    /* Sidebar Styling */
+    section[data-testid="stSidebar"] {
         background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        padding: 18px 20px;
-        border-radius: 14px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+        border-right: 1px solid #E2E8F0;
     }
-    
-    /* Section Headers */
+
+    /* Metric Cards Redesign */
+    div[data-testid="metric-container"] {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        padding: 16px 20px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease-in-out;
+    }
+    div[data-testid="metric-container"]:hover {
+        border-color: #CBD5E1;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Typography Polish */
     h1, h2, h3 {
         color: #0F172A;
         font-weight: 700;
+        letter-spacing: -0.025em;
     }
-
-    /* Sidebar Styling adjustments */
-    section[data-testid="stSidebar"] {
-        background-color: #F1F5F9;
-        border-right: 1px solid #E2E8F0;
+    
+    /* Input Fields & Dataframes */
+    .stTextInput input, .stTextArea textarea {
+        border-radius: 8px !important;
+        border-color: #CBD5E1 !important;
     }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
-# 2. Application Header
+# 3. Clean Header Section
 st.markdown(
     """
-    <div style='padding: 0.5rem 0 1.5rem 0; border-bottom: 1px solid #E2E8F0; margin-bottom: 2rem;'>
-        <h1 style='color: #0F172A; font-size: 2.1rem; margin-bottom: 0;'>🚗 Fleet Operations Dashboard</h1>
-        <p style='color: #64748B; font-size: 1rem;'>Real-time operational monitoring, captain status, and financial balance tracker.</p>
+    <div style='display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid #E2E8F0; margin-bottom: 2rem;'>
+        <div>
+            <h1 style='font-size: 1.85rem; margin-bottom: 0.2rem;'>🚗 Fleet Intelligence Hub</h1>
+            <p style='color: #64748B; font-size: 0.95rem; margin: 0;'>Real-time operational monitoring, live financials, and captain analytics.</p>
+        </div>
+        <div style='background: #EFF6FF; color: #1D4ED8; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; border: 1px solid #BFDBFE;'>
+            🟢 System Online
+        </div>
     </div>
 """,
     unsafe_allow_html=True,
 )
 
 
-# 3. Fallback Sample Data Generator
+# 4. Fallback Sample Data Generator
 @st.cache_data
 def load_sample_data():
     data = {
@@ -129,17 +147,19 @@ def load_sample_data():
     return pd.DataFrame(data)
 
 
-# 4. Sidebar Data Input Section
-st.sidebar.markdown("### 📊 Data Management")
+# 5. Sidebar Data Management
+st.sidebar.markdown(
+    "### 📁 Data Source", help="Upload or paste dataset headers."
+)
 input_method = st.sidebar.radio(
-    "Choose Input Method", ["Upload CSV File", "Paste CSV Data"]
+    "Select Input Method", ["Upload CSV File", "Paste CSV Data"], label_visibility="collapsed"
 )
 
 df = None
 
 if input_method == "Upload CSV File":
     uploaded_file = st.sidebar.file_uploader(
-        "Upload CSV Export", type=["csv", "txt"]
+        "Upload file", type=["csv", "txt"], label_visibility="collapsed"
     )
     if uploaded_file is not None:
         try:
@@ -148,12 +168,13 @@ if input_method == "Upload CSV File":
             st.error(f"Error reading file: {e}")
 else:
     pasted_data = st.sidebar.text_area(
-        "Paste CSV / Excel Data Here",
+        "Paste data",
         placeholder=(
             "captain_id\tcity\tcaptain_name...\n(Include headers in the first"
             " row)"
         ),
-        height=140,
+        height=130,
+        label_visibility="collapsed",
     )
     if pasted_data:
         try:
@@ -164,12 +185,12 @@ else:
 if df is None:
     df = load_sample_data()
     st.sidebar.info(
-        "💡 Showing sample data. Upload or paste your dataset to populate live metrics."
+        "💡 Showing sample data. Upload your file or paste your CSV rows above to load live metrics."
     )
 
-# 5. Sidebar Global Filters
+# 6. Sidebar Global Filters
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔍 Filters")
+st.sidebar.markdown("### 🔎 Quick Filters")
 selected_cities = st.sidebar.multiselect(
     "Filter by City",
     options=df["city"].unique().tolist(),
@@ -193,7 +214,7 @@ filtered_df = df[
     & (df["captain_block_status"].isin(selected_statuses))
 ]
 
-# 6. Top Metrics Cards Row (Saas Card Layout)
+# 7. Executive Metrics Grid
 col1, col2, col3, col4, col5 = st.columns(5)
 
 total_captains = len(filtered_df)
@@ -217,46 +238,51 @@ with col3:
     st.metric(label="Net Wallet Balance", value=f"${total_balance:,.2f}")
 with col4:
     st.metric(
-        label="Cash Blocked", value=f"{cash_blocked_count}", delta="Needs review"
+        label="Cash Blocked", value=f"{cash_blocked_count}", delta="Review needed"
     )
 with col5:
     st.metric(label="Avg Trips / Captain", value=f"{avg_trips:,}")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# 7. Charts Row (Fixed layout and styling matching reference)
+# 8. Modern Analytics Charts Row
 chart_col1, chart_col2 = st.columns(2)
 
 with chart_col1:
-    st.markdown("### 🏆 Trips Distribution by Tier")
+    st.markdown(
+        "<h3 style='font-size: 1.1rem; margin-bottom: 10px;'>🏆 Trips Distribution by Tier</h3>",
+        unsafe_allow_html=True,
+    )
     if not filtered_df.empty:
         tier_df = (
             filtered_df.groupby("tier")["cumulative_trip_count"]
             .sum()
             .reset_index()
         )
-        # Proper categorical bar chart configuration preventing squished numeric distortion
         fig_tier = px.bar(
             tier_df,
             x="tier",
             y="cumulative_trip_count",
             color="tier",
-            color_discrete_sequence=["#db2777", "#4f46e5", "#0ea5e9", "#10b981"],
+            color_discrete_sequence=["#6366f1", "#ec4899", "#3b82f6", "#10b981"],
             template="plotly_white",
         )
         fig_tier.update_layout(
-            margin=dict(l=10, r=10, t=20, b=10),
-            height=300,
+            margin=dict(l=10, r=10, t=10, b=10),
+            height=260,
             showlegend=False,
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             xaxis_title="",
-            yaxis_title="Total Trips",
+            yaxis_title="",
         )
         st.plotly_chart(fig_tier, use_container_width=True)
 
 with chart_col2:
-    st.markdown("### 🏢 Performance per Limo Company")
+    st.markdown(
+        "<h3 style='font-size: 1.1rem; margin-bottom: 10px;'>🏢 Performance per Limo Company</h3>",
+        unsafe_allow_html=True,
+    )
     if not filtered_df.empty:
         comp_df = (
             filtered_df.groupby("limo_company_name")["cumulative_trip_count"]
@@ -267,31 +293,41 @@ with chart_col2:
             comp_df,
             names="limo_company_name",
             values="cumulative_trip_count",
-            hole=0.5,
+            hole=0.6,
             color_discrete_sequence=[
-                "#1e3a8a",
+                "#0f172a",
                 "#3b82f6",
                 "#93c5fd",
-                "#60a5fa",
+                "#cbd5e1",
             ],
             template="plotly_white",
         )
         fig_comp.update_layout(
-            margin=dict(l=10, r=10, t=20, b=10),
-            height=300,
+            margin=dict(l=10, r=10, t=10, b=10),
+            height=260,
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.2,
+                xanchor="center",
+                x=0.5,
+            ),
         )
         st.plotly_chart(fig_comp, use_container_width=True)
 
-# 8. Detailed Data Grid & Search
+# 9. Clean Detailed Database Grid
 st.markdown("<br>", unsafe_allow_html=True)
-st.markdown("### 📋 Detailed Captains Database")
+st.markdown(
+    "<h3 style='font-size: 1.15rem; margin-bottom: 10px;'>📋 Detailed Captains Database</h3>",
+    unsafe_allow_html=True,
+)
 
 search_query = st.text_input(
-    "🔍 Quick Search Captain",
-    placeholder="Type captain name, ID, or phone number...",
+    "Search",
+    placeholder="🔍 Type captain name, ID, or phone number...",
+    label_visibility="collapsed",
 )
 if search_query:
     filtered_df = filtered_df[
@@ -306,6 +342,6 @@ st.dataframe(filtered_df, use_container_width=True, hide_index=True)
 st.download_button(
     label="📥 Export Filtered Data to CSV",
     data=filtered_df.to_csv(index=False).encode("utf-8"),
-    file_name="filtered_captain_metrics.csv",
+    file_name="fleet_filtered_captains.csv",
     mime="text/csv",
 )
