@@ -3,9 +3,9 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-# 1. Page Configuration & High-End Styling
+# 1. Page Configuration & Modern Light Theme Styling
 st.set_page_config(
-    page_title="Fleet Operations & Captain Dashboard",
+    page_title="Fleet Operations Dashboard",
     page_icon="🚗",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -14,14 +14,35 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .stApp { background-color: #F8FAFC; color: #1E293B; font-family: 'Inter', sans-serif; }
+    /* Global App Styling */
+    .stApp {
+        background-color: #F8FAFC;
+        color: #1E293B;
+        font-family: 'Inter', sans-serif;
+    }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    div.metric-card {
-        background-color: #FFFFFF; border: 1px solid #E2E8F0; padding: 20px;
-        border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+
+    /* Card Containers for Metrics & Sections */
+    div.metric-container {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        padding: 18px 20px;
+        border-radius: 14px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
     }
-    h1, h2, h3 { color: #0F172A; font-weight: 700; }
+    
+    /* Section Headers */
+    h1, h2, h3 {
+        color: #0F172A;
+        font-weight: 700;
+    }
+
+    /* Sidebar Styling adjustments */
+    section[data-testid="stSidebar"] {
+        background-color: #F1F5F9;
+        border-right: 1px solid #E2E8F0;
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -30,9 +51,9 @@ st.markdown(
 # 2. Application Header
 st.markdown(
     """
-    <div style='padding: 1rem 0; border-bottom: 1px solid #E2E8F0; margin-bottom: 2rem;'>
-        <h1 style='color: #0F172A; font-size: 2.2rem; margin-bottom: 0;'>🚗 Fleet Operations Dashboard</h1>
-        <p style='color: #64748B; font-size: 1.05rem;'>Real-time operational monitoring, captain status, and financial balance tracker.</p>
+    <div style='padding: 0.5rem 0 1.5rem 0; border-bottom: 1px solid #E2E8F0; margin-bottom: 2rem;'>
+        <h1 style='color: #0F172A; font-size: 2.1rem; margin-bottom: 0;'>🚗 Fleet Operations Dashboard</h1>
+        <p style='color: #64748B; font-size: 1rem;'>Real-time operational monitoring, captain status, and financial balance tracker.</p>
     </div>
 """,
     unsafe_allow_html=True,
@@ -108,8 +129,8 @@ def load_sample_data():
     return pd.DataFrame(data)
 
 
-# 4. Sidebar Data Input Section (Supports File Upload OR Direct Text Paste)
-st.sidebar.markdown("### 📊 Data Management", unsafe_allow_html=True)
+# 4. Sidebar Data Input Section
+st.sidebar.markdown("### 📊 Data Management")
 input_method = st.sidebar.radio(
     "Choose Input Method", ["Upload CSV File", "Paste CSV Data"]
 )
@@ -132,26 +153,22 @@ else:
             "captain_id\tcity\tcaptain_name...\n(Include headers in the first"
             " row)"
         ),
-        height=150,
+        height=140,
     )
     if pasted_data:
         try:
-            # Automatically sniffs delimiter whether comma-separated or tab-separated (Excel copy-paste)
             df = pd.read_csv(io.StringIO(pasted_data), sep=None, engine="python")
         except Exception as e:
-            st.error(
-                f"Could not parse data. Ensure headers are present. Error: {e}"
-            )
+            st.error(f"Could not parse data. Error: {e}")
 
-# Fallback to sample data if nothing is uploaded or pasted yet
 if df is None:
     df = load_sample_data()
     st.sidebar.info(
-        "💡 Showing sample data. Upload a file or paste your dataset to view live"
-        " metrics."
+        "💡 Showing sample data. Upload or paste your dataset to populate live metrics."
     )
 
 # 5. Sidebar Global Filters
+st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔍 Filters")
 selected_cities = st.sidebar.multiselect(
     "Filter by City",
@@ -176,8 +193,9 @@ filtered_df = df[
     & (df["captain_block_status"].isin(selected_statuses))
 ]
 
-# 6. Top Metrics Row
+# 6. Top Metrics Cards Row (Saas Card Layout)
 col1, col2, col3, col4, col5 = st.columns(5)
+
 total_captains = len(filtered_df)
 active_captains = len(
     filtered_df[filtered_df["captain_block_status"] == "Active"]
@@ -185,6 +203,7 @@ active_captains = len(
 total_trips = filtered_df["cumulative_trip_count"].sum()
 total_balance = filtered_df["balance"].sum()
 cash_blocked_count = len(filtered_df[filtered_df["cash_block"] == "Yes"])
+avg_trips = int(total_trips / total_captains) if total_captains > 0 else 0
 
 with col1:
     st.metric(
@@ -201,14 +220,11 @@ with col4:
         label="Cash Blocked", value=f"{cash_blocked_count}", delta="Needs review"
     )
 with col5:
-    avg_trips = (
-        int(total_trips / total_captains) if total_captains > 0 else 0
-    )
     st.metric(label="Avg Trips / Captain", value=f"{avg_trips:,}")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# 7. Charts Row
+# 7. Charts Row (Fixed layout and styling matching reference)
 chart_col1, chart_col2 = st.columns(2)
 
 with chart_col1:
@@ -219,20 +235,23 @@ with chart_col1:
             .sum()
             .reset_index()
         )
+        # Proper categorical bar chart configuration preventing squished numeric distortion
         fig_tier = px.bar(
             tier_df,
             x="tier",
             y="cumulative_trip_count",
             color="tier",
-            color_discrete_sequence=px.colors.sequential.Teal,
+            color_discrete_sequence=["#db2777", "#4f46e5", "#0ea5e9", "#10b981"],
             template="plotly_white",
         )
         fig_tier.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10),
-            height=280,
+            margin=dict(l=10, r=10, t=20, b=10),
+            height=300,
             showlegend=False,
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            xaxis_title="",
+            yaxis_title="Total Trips",
         )
         st.plotly_chart(fig_tier, use_container_width=True)
 
@@ -248,15 +267,21 @@ with chart_col2:
             comp_df,
             names="limo_company_name",
             values="cumulative_trip_count",
-            hole=0.4,
-            color_discrete_sequence=px.colors.sequential.Blues_r,
+            hole=0.5,
+            color_discrete_sequence=[
+                "#1e3a8a",
+                "#3b82f6",
+                "#93c5fd",
+                "#60a5fa",
+            ],
             template="plotly_white",
         )
         fig_comp.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10),
-            height=280,
+            margin=dict(l=10, r=10, t=20, b=10),
+            height=300,
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
         )
         st.plotly_chart(fig_comp, use_container_width=True)
 
